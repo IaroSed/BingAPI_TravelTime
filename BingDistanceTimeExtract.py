@@ -29,6 +29,9 @@ class BingMapsDTExtract:
            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
        >>extractdtfrombing_obo(file): Extracting the TravelDuration and TravelTime using BingAPI one by one (one couple at a time)
            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+       >>extractcoorfrombing_obo(file):Extracting the Latitude and Longitude using BingAPI one by one (obo)
+            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+        '''
        >>storequeries(server, db, table_done, table_errors): Storing the results and errors in SQL
             server          - Required  :  SQL Server name (Str)
             db:             - Required  :  Data Base name (Str)
@@ -170,12 +173,13 @@ class BingMapsDTExtract:
         NewQueries = pd.read_sql(self.query,con=engine)
         
         #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
-        self.address = pd.DataFrame({'Address': NewQueries['Address'],
+        self.new = pd.DataFrame({'Address': NewQueries['Address'],
                                    'Latitude': 0,
                                    'Longitude': 0})
     
-        self.latitude = self.address['Latitude']
-        self.longitude = self.address['Longitude']
+        self.address = self.new['Address']
+        self.latitude = self.new['Latitude']
+        self.longitude = self.new['Longitude']
     
     
     
@@ -475,7 +479,7 @@ def main():
     
     #print(x.__doc__)
     
-    
+    # Code to to get exact coordinates
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
@@ -486,11 +490,11 @@ def main():
     
     x.storequeries(server,db, 'Address_done', 'Address_error' )
     
-    end = time.time()-start
-    print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
     
     
-'''    
+    
+    '''  
+    # Code to get travel time and travel distance
     Countries = ['Puerto Rico', 'Peru', 'Tunisia', 'Namibia', 'Greece', 'Croatia', 'Bahrain']
 
     server = 'IAROLAPTOP\IAROSQLSERVER'
@@ -521,7 +525,8 @@ def main():
     x.storequeries(server,db)'''
     
 
-
+    end = time.time()-start
+    print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
     
     
     #PastQueries = x.pastqueries
