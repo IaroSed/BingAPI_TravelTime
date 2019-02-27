@@ -29,9 +29,11 @@ class BingMapsDTExtract:
            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
        >>extractdtfrombing_obo(file): Extracting the TravelDuration and TravelTime using BingAPI one by one (one couple at a time)
            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
-       >>storequeries(server, db): Storing the results and errors in SQL
-           server   - Required  :  SQL Server name (Str)
-           db:      - Required  :  Data Base name (Str)
+       >>storequeries(server, db, table_done, table_errors): Storing the results and errors in SQL
+            server          - Required  :  SQL Server name (Str)
+            db:             - Required  :  Data Base name (Str)
+            table_done:     - Required  :  Table name to store the good results (Str)
+            table_errors:   - Required  :  Table name to store the errors (Str)
 
     List of attributes:
        >>self.donequeries  : queries for which the travel distance and time was calculated. Pandas Dataframe [KeyID],[Source],[Destination],[TravelDuration] and [TravelDistance]
@@ -168,9 +170,12 @@ class BingMapsDTExtract:
         NewQueries = pd.read_sql(self.query,con=engine)
         
         #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
-        self.address = pd.DataFrame({'Address': NewQueries['Source'],
+        self.address = pd.DataFrame({'Address': NewQueries['Address'],
                                    'Latitude': 0,
                                    'Longitude': 0})
+    
+        self.latitude = self.address['Latitude']
+        self.longitude = self.address['Longitude']
     
     
     
@@ -368,7 +373,7 @@ class BingMapsDTExtract:
         import json
         import pandas as pd
         
-        len_a = len(self.addresses)
+        len_a = len(self.address)
         
         # Your Bing Maps Key 
         bingMapsKey =  open(file, 'r').read()
@@ -388,11 +393,12 @@ class BingMapsDTExtract:
             routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
                 
             indexes.append(i)
-                
-            encodedAddress = urllib.parse.quote(self.address.iloc[i], safe='')
+  
+            encodedAddress = urllib.parse.quote(str(self.address.iloc[i]), safe='')
                 
             routeUrl = routeUrl + "?q="+ encodedAddress+ "&key=" + bingMapsKey
-                
+            #print(routeUrl)
+            
             try:
                 request = urllib.request.Request(routeUrl)
                 response = urllib.request.urlopen(request)
@@ -404,11 +410,10 @@ class BingMapsDTExtract:
                 self.error_indexes.append(i)
         
             try:
-       
-                #self.latitude.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDuration"]
-                #self.longitude.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDistance"]
-                print("Extracting")
-                        
+
+                self.latitude.iloc[i] = result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0]
+                self.longitude.iloc[i] = result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1]
+                                        
             except:
                 #result may be empty
                 warning = "Warning. No results received from Bing API"
@@ -420,13 +425,13 @@ class BingMapsDTExtract:
             
         #Creating the DataFrame containing the couples (Source Destination) for which we got a Travel Duration and Travel Distance
         
-        self.doneaddresses  = pd.DataFrame({'Adresses': self.address,
+        self.donequeries  = pd.DataFrame({'Adresses': self.address,
                           'Latitude': self.latitude,
                           'Longitude': self.longitude})[error_mask]
 
             
         #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
-        self.erroraddresses = pd.DataFrame({'Addresses': self.address})[[not i for i in error_mask]]
+        self.errorqueries = pd.DataFrame({'Address': self.address})[[not i for i in error_mask]]
             
         if (len(self.error_indexes) != 0):
             print("The script encountered a problem on the following indexes: " + str(self.error_indexes))
@@ -436,11 +441,13 @@ class BingMapsDTExtract:
 
                     
                     
-    def storequeries(self, server, db):
+    def storequeries(self, server, db, table_done, table_errors):
         '''Storing the results and errors in SQL
         @params: 
-            server   - Required  :  SQL Server name (Str)
-            db:      - Required  :  Data Base name (Str)
+            server          - Required  :  SQL Server name (Str)
+            db:             - Required  :  Data Base name (Str)
+            table_done:     - Required  :  Table name to store the good results (Str)
+            table_errors:   - Required  :  Table name to store the errors (Str)
         '''
         
         import sqlalchemy
@@ -453,8 +460,8 @@ class BingMapsDTExtract:
         
         engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
         
-        self.donequeries.to_sql('PastQueries', con=engine, if_exists='append', index=False)
-        self.errorqueries.to_sql('Errors', con=engine, if_exists='append', index=False)
+        self.donequeries.to_sql(table_done, con=engine, if_exists='append', index=False)
+        self.errorqueries.to_sql(table_errors, con=engine, if_exists='append', index=False)
 
 
 
@@ -468,6 +475,22 @@ def main():
     
     #print(x.__doc__)
     
+    
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    
+    query ="SELECT [Address] FROM [dbo].[Address]"
+    x.getnewaddresses(server, db, query)
+    
+    x.extractcoorfrombing_obo("BingMapsKey.txt")
+    
+    x.storequeries(server,db, 'Address_done', 'Address_error' )
+    
+    end = time.time()-start
+    print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
+    
+    
+'''    
     Countries = ['Puerto Rico', 'Peru', 'Tunisia', 'Namibia', 'Greece', 'Croatia', 'Bahrain']
 
     server = 'IAROLAPTOP\IAROSQLSERVER'
@@ -495,11 +518,11 @@ def main():
     print("\nExtracting Travel distances and Travel times for errors")
     x.extractdtfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db)
+    x.storequeries(server,db)'''
+    
+
 
     
-    end = time.time()-start
-    print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
     
     #PastQueries = x.pastqueries
     #DoneQueries = x.donequeries
