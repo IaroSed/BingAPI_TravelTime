@@ -129,10 +129,12 @@ class BingMapsDTExtract:
          '''
         
         import pandas as pd
+
         
         merge = self.new.merge(self.past, how='left', left_on='NewKey', right_on='KeyID')
-        self.query_mask=merge['KeyID'].isnull()
         
+        self.query_mask=merge['KeyID'].isnull()
+
         # Creating output Panda series that will be filled with the results
         self.key = self.new['NewKey'][self.query_mask]
         self.source = self.new['NewSource'][self.query_mask]
@@ -479,6 +481,7 @@ def main():
     
     #print(x.__doc__)
     
+    '''
     # Code to to get exact coordinates
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
@@ -489,14 +492,14 @@ def main():
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
     x.storequeries(server,db, 'Address_done', 'Address_error' )
+    '''
     
     
     
-    
-    '''  
+    '''
     # Code to get travel time and travel distance
     Countries = ['Puerto Rico', 'Peru', 'Tunisia', 'Namibia', 'Greece', 'Croatia', 'Bahrain']
-
+    
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
@@ -515,25 +518,40 @@ def main():
         
         x.storequeries(server,db)
         
-   
+       
     query ="SELECT [Source],[Destination] FROM [dbo].[Errors]"
     x.getnewqueries(server, db, query)    
     
     print("\nExtracting Travel distances and Travel times for errors")
     x.extractdtfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db)'''
+    x.storequeries(server,db, 'PastQuerries', 'Errors')
+    '''
     
-
+    #Code to go over the Errors one by one
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    
+    query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[Errors]"
+    x.getnewqueries(server, db, query)
+    
+    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
+    x.getpastqueries(server, db, query)
+    
+    x.cleanqueries()
+    
+    x.extractdtfrombing_obo("BingMapsKey.txt")
+    
+    x.storequeries(server,db,'PastQuerries', 'Errors')
+ 
+    
     end = time.time()-start
     print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
     
-    
-    #PastQueries = x.pastqueries
-    #DoneQueries = x.donequeries
-    #ErrorQueries = x.errorqueries        
+         
     
 
 if __name__ == '__main__':
     
     main()
+    
