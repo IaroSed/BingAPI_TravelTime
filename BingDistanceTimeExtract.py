@@ -19,8 +19,15 @@ class BingMapsDTExtract:
            db:      - Required  :  Data Base name (Str)
            query    - Required  : SQL query (Str)
            NB: This methods expects to receive four columns: [KeyID],[Source],[Destination],[TravelDuration] and [TravelDistance]
+       >> getnewaddresses():  Extracting new addresses to get exact coordinates from Bing API
+           server   - Required  :  SQL Server name (Str)
+           db:      - Required  :  Data Base name (Str)
+           query    - Required  : SQL query (Str)
+           NB: This methods expects to receive one column: [Adresses]   
        >>cleanqueries(): Checking the new and past queries to select the net new ones and the ones that were already queried in the past
-       >>extractfrombing(file): Extracting the TravelDuration and TravelTime using BingAPI
+       >>extractdtfrombing(file): Extracting the TravelDuration and TravelTime using BingAPI
+           file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+       >>extractdtfrombing_obo(file): Extracting the TravelDuration and TravelTime using BingAPI one by one (one couple at a time)
            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
        >>storequeries(server, db): Storing the results and errors in SQL
            server   - Required  :  SQL Server name (Str)
@@ -137,9 +144,37 @@ class BingMapsDTExtract:
                           'TravelDuration': self.new['NewTravelDuration'],
                           'TravelDistance': self.new['NewTravelDistance']})[[not i for i in self.query_mask]] 
 
+    
+    def getnewaddresses(self,server,db,query):    
+        ''' Extracting new addresses to get exact coordinates from Bing API
+        @params:
+            server   - Required  :  SQL Server name (Str)
+            db:      - Required  :  Data Base name (Str)
+            query    - Required  : SQL query (Str)
+        NB: This methods expects to receive one column: [Address]
+        '''
         
+        import sqlalchemy
+        import pandas as pd
+        
+        self.server = server
+        self.db = db
+        self.query = query
+        
+        encoding='utf-8'
+        driver = 'SQL+Server'      
+        engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(self.server, self.db, driver, encoding))
 
-    def extractfrombing(self, file):
+        NewQueries = pd.read_sql(self.query,con=engine)
+        
+        #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
+        self.address = pd.DataFrame({'Address': NewQueries['Source'],
+                                   'Latitude': 0,
+                                   'Longitude': 0})
+    
+    
+    
+    def extractdtfrombing(self, file):
         '''Extracting the TravelDuration and TravelTime using BingAPI
         @params:
             file     - Required  :   path to the file where the BingMapsKey is stored (Str)
@@ -238,7 +273,7 @@ class BingMapsDTExtract:
             print("Source and destination lists have different lengths")
 
 
-    def extractfrombing_obo(self, file):
+    def extractdtfrombing_obo(self, file):
         '''Extracting the TravelDuration and TravelTime using BingAPI one by one (obo)
         @params:
             file     - Required  :   path to the file where the BingMapsKey is stored (Str)
@@ -286,12 +321,12 @@ class BingMapsDTExtract:
                     result = json.loads(r)
                     
                 except:
-                    self.error_indexes += indexes
+                    self.error_indexes.append(i)
         
                 try:
        
-                    self.travelduration.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][j]["travelDuration"]
-                    self.traveldistance.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][j]["travelDistance"]
+                    self.travelduration.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDuration"]
+                    self.traveldistance.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDistance"]
                         
                 except:
                     #result may be empty
@@ -320,6 +355,85 @@ class BingMapsDTExtract:
                         
         else:
             print("Source and destination lists have different lengths")
+     
+        
+        
+    def extractcoorfrombing_obo(self, file):
+        '''Extracting the Latitude and Longitude using BingAPI one by one (obo)
+        @params:
+            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+        '''
+        
+        import urllib.request
+        import json
+        import pandas as pd
+        
+        len_a = len(self.addresses)
+        
+        # Your Bing Maps Key 
+        bingMapsKey =  open(file, 'r').read()
+        
+        #Variables to log indexes of errors
+        self.error_indexes = []
+        all_indexes = list(range(0,len_a))
+        
+        self._printprogressbar(0, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            
+        warning = ""
+            
+        indexes = []
+            
+        for i in range(0,len_a):
+
+            routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
+                
+            indexes.append(i)
+                
+            encodedAddress = urllib.parse.quote(self.address.iloc[i], safe='')
+                
+            routeUrl = routeUrl + "?q="+ encodedAddress+ "&key=" + bingMapsKey
+                
+            try:
+                request = urllib.request.Request(routeUrl)
+                response = urllib.request.urlopen(request)
+                
+                r = response.read().decode(encoding="utf-8")
+                result = json.loads(r)
+                    
+            except:
+                self.error_indexes.append(i)
+        
+            try:
+       
+                #self.latitude.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDuration"]
+                #self.longitude.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][0]["travelDistance"]
+                print("Extracting")
+                        
+            except:
+                #result may be empty
+                warning = "Warning. No results received from Bing API"
+                    
+            self._printprogressbar(i, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    
+        # Preparing the error mask to select the entries with no errors and log the ones with errors
+        error_mask = [i not in self.error_indexes for i in all_indexes]
+            
+        #Creating the DataFrame containing the couples (Source Destination) for which we got a Travel Duration and Travel Distance
+        
+        self.doneaddresses  = pd.DataFrame({'Adresses': self.address,
+                          'Latitude': self.latitude,
+                          'Longitude': self.longitude})[error_mask]
+
+            
+        #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
+        self.erroraddresses = pd.DataFrame({'Addresses': self.address})[[not i for i in error_mask]]
+            
+        if (len(self.error_indexes) != 0):
+            print("The script encountered a problem on the following indexes: " + str(self.error_indexes))
+                
+        if (len(warning) != 0):
+            print(warning)
+
                     
                     
     def storequeries(self, server, db):
@@ -370,7 +484,7 @@ def main():
         x.cleanqueries()
         
         print("\nExtracting Travel distances and Travel times for country: " + str(country))
-        x.extractfrombing("BingMapsKey.txt")
+        x.extractdtfrombing("BingMapsKey.txt")
         
         x.storequeries(server,db)
         
@@ -379,7 +493,7 @@ def main():
     x.getnewqueries(server, db, query)    
     
     print("\nExtracting Travel distances and Travel times for errors")
-    x.extractfrombing_obo("BingMapsKey.txt")
+    x.extractdtfrombing_obo("BingMapsKey.txt")
     
     x.storequeries(server,db)
 
