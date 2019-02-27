@@ -236,6 +236,90 @@ class BingMapsDTExtract:
                         
         else:
             print("Source and destination lists have different lengths")
+
+
+    def extractfrombing_obo(self, file):
+        '''Extracting the TravelDuration and TravelTime using BingAPI one by one (obo)
+        @params:
+            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+        '''
+        
+        import urllib.request
+        import json
+        import pandas as pd
+        
+        len_s = len(self.source)
+        len_d = len(self.destination)
+        
+        # Your Bing Maps Key 
+        bingMapsKey =  open(file, 'r').read()
+        
+        #Variables to log indexes of errors
+        self.error_indexes = []
+        all_indexes = list(range(0,len_s))
+        
+        self._printprogressbar(0, len_s, prefix = 'Progress:', suffix = 'Complete', length = 50)
+        
+        #Making sure that there is a destination for each source
+        if (len_s == len_d):
+            
+            warning = ""
+            
+            indexes = []
+            
+            for i in range(0,len_s):
+
+                routeUrl = "http://dev.virtualearth.net/REST/V1/Routes/Driving?"
+                
+                indexes.append(i)
+                
+                encodedSource = urllib.parse.quote(self.source.iloc[i], safe='')
+                encodedDest = urllib.parse.quote(self.destination.iloc[i], safe='')
+                
+                routeUrl = routeUrl + "&wp.0="+ encodedSource + "&wp.1="+ encodedDest + "&key=" + bingMapsKey
+                
+                try:
+                    request = urllib.request.Request(routeUrl)
+                    response = urllib.request.urlopen(request)
+                
+                    r = response.read().decode(encoding="utf-8")
+                    result = json.loads(r)
+                    
+                except:
+                    self.error_indexes += indexes
+        
+                try:
+       
+                    self.travelduration.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][j]["travelDuration"]
+                    self.traveldistance.iloc[i] = result["resourceSets"][0]["resources"][0]["routeLegs"][j]["travelDistance"]
+                        
+                except:
+                    #result may be empty
+                    warning = "Warning. No results received from Bing API"
+                    
+                self._printprogressbar(i, len_s, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    
+            # Preparing the error mask to select the entries with no errors and log the ones with errors
+            error_mask = [i not in self.error_indexes for i in all_indexes]
+            
+            #Creating the DataFrame containing the couples (Source Destination) for which we got a Travel Duration and Travel Distance
+            self.donequeries  = pd.DataFrame({'KeyID': self.key,
+                          'Source': self.source,
+                          'Destination': self.destination,
+                          'TravelDuration': self.travelduration,
+                          'TravelDistance': self.traveldistance})[error_mask]
+            
+            #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
+            self.errorqueries = pd.DataFrame({'Source': self.source,'Destination': self.destination})[[not i for i in error_mask]]
+            
+            if (len(self.error_indexes) != 0):
+                print("The script encountered a problem on the following indexes: " + str(self.error_indexes))
+                
+            if (len(warning) != 0):
+                print(warning)
+                        
+        else:
+            print("Source and destination lists have different lengths")
                     
                     
     def storequeries(self, server, db):
@@ -289,6 +373,16 @@ def main():
         x.extractfrombing("BingMapsKey.txt")
         
         x.storequeries(server,db)
+        
+   
+    query ="SELECT [Source],[Destination] FROM [dbo].[Errors]"
+    x.getnewqueries(server, db, query)    
+    
+    print("\nExtracting Travel distances and Travel times for errors")
+    x.extractfrombing_obo("BingMapsKey.txt")
+    
+    x.storequeries(server,db)
+
     
     end = time.time()-start
     print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
