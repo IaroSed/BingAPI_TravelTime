@@ -481,18 +481,18 @@ def main():
     
     #print(x.__doc__)
     
-    '''
+    
     # Code to to get exact coordinates
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT [Address] FROM [dbo].[Address]"
+    query ="SELECT [Address] FROM [dbo].[AE_Addresses]"
     x.getnewaddresses(server, db, query)
     
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db, 'Address_done', 'Address_error' )
-    '''
+    x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
+    
     
     
     
@@ -528,6 +528,7 @@ def main():
     x.storequeries(server,db, 'PastQuerries', 'Errors')
     '''
     
+    '''
     #Code to go over the Errors one by one
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
@@ -542,9 +543,30 @@ def main():
     
     x.extractdtfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db,'PastQuerries', 'Errors')
- 
+    x.storequeries(server,db,'PastQueries', 'Errors')
+    '''
     
+    '''
+    # Code to get travel time and travel distance (all countries)
+    
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    
+
+    query ="SELECT [Source],[Destination] FROM [dbo].[NewQueries]"
+    x.getnewqueries(server, db, query)
+ 
+    query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
+    x.getpastqueries(server, db, query)
+
+    x.cleanqueries()
+    
+    print("\nExtracting Travel distances and Travel times")
+    x.extractdtfrombing("BingMapsKey.txt")
+    
+    x.storequeries(server,db,'PastQueries', 'Errors')
+    '''
+
     end = time.time()-start
     print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
     
@@ -554,4 +576,3 @@ def main():
 if __name__ == '__main__':
     
     main()
-    
