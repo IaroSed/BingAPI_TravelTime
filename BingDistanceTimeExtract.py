@@ -182,7 +182,8 @@ class BingMapsDTExtract:
         self.address = self.new['Address']
         self.latitude = self.new['Latitude']
         self.longitude = self.new['Longitude']
-    
+        
+        
     
     
     def extractdtfrombing(self, file):
@@ -481,8 +482,8 @@ def main():
     
     #print(x.__doc__)
     
-    
-    # Code to to get exact coordinates
+    '''
+    # Code to to get exact coordinates for Account Executives
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
@@ -492,7 +493,68 @@ def main():
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
     x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
+    '''
     
+    '''
+    # Code to to get exact coordinates for Accounts
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    
+    query ="SELECT [Address] FROM [dbo].[Account_Addresses]"
+    x.getnewaddresses(server, db, query)
+    
+    x.extractcoorfrombing_obo("BingMapsKey.txt")
+    
+    x.storequeries(server,db, 'Account_Addresses_done', 'Account_Addresses_error')
+    '''
+    
+    country = "France"
+    
+    import sqlalchemy
+    import pandas as pd
+    import itertools
+    
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    encoding='utf-8'
+    driver = 'SQL+Server'
+        
+    engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
+    
+    query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+    #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = 'United States'"    
+
+    
+    ae = pd.read_sql(query,con=engine)
+
+    
+    
+    query =query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+    #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
+        
+    account = pd.read_sql(query,con=engine)
+
+    
+    couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
+    
+    labels = ['Source', 'Destination']
+    couples_pd = pd.DataFrame.from_records(couples, columns=labels)
+    
+    x.new = pd.DataFrame({'NewKey': couples_pd['Source'].str.cat(others=couples_pd['Destination'],sep='+').rename("NewKey"),
+                                   'NewSource': couples_pd['Source'],
+                                   'NewDestination': couples_pd['Destination'],
+                                   'NewTravelDuration': 0,
+                                   'NewTravelDistance': 0})
+    
+    query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
+    x.getpastqueries(server, db, query)
+    
+    x.cleanqueries()
+    
+    print("\nExtracting Travel distances and Travel times for country: " + str(country))
+    x.extractdtfrombing("BingMapsKey.txt")
+        
+    x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
     
     
     
