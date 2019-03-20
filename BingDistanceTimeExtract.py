@@ -508,53 +508,55 @@ def main():
     x.storequeries(server,db, 'Account_Addresses_done', 'Account_Addresses_error')
     '''
     
-    country = "France"
+    Countries = ['Germany', 'United Kingdom', 'United States', 'Canada']
     
     import sqlalchemy
     import pandas as pd
     import itertools
     
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    encoding='utf-8'
-    driver = 'SQL+Server'
+    for country in Countries:
+    
+        server = 'IAROLAPTOP\IAROSQLSERVER'
+        db = 'IARODB'
+        encoding='utf-8'
+        driver = 'SQL+Server'
+            
+        engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
         
-    engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
+        query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+        #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = 'United States'"    
     
-    query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
-    #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = 'United States'"    
-
-    
-    ae = pd.read_sql(query,con=engine)
-
-    
-    
-    query =query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
-    #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
         
-    account = pd.read_sql(query,con=engine)
-
+        ae = pd.read_sql(query,con=engine)
     
-    couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
-    
-    labels = ['Source', 'Destination']
-    couples_pd = pd.DataFrame.from_records(couples, columns=labels)
-    
-    x.new = pd.DataFrame({'NewKey': couples_pd['Source'].str.cat(others=couples_pd['Destination'],sep='+').rename("NewKey"),
-                                   'NewSource': couples_pd['Source'],
-                                   'NewDestination': couples_pd['Destination'],
-                                   'NewTravelDuration': 0,
-                                   'NewTravelDistance': 0})
-    
-    query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
-    x.getpastqueries(server, db, query)
-    
-    x.cleanqueries()
-    
-    print("\nExtracting Travel distances and Travel times for country: " + str(country))
-    x.extractdtfrombing("BingMapsKey.txt")
         
-    x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
+        
+        query =query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+        #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
+            
+        account = pd.read_sql(query,con=engine)
+    
+        
+        couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
+        
+        labels = ['Source', 'Destination']
+        couples_pd = pd.DataFrame.from_records(couples, columns=labels)
+        
+        x.new = pd.DataFrame({'NewKey': couples_pd['Source'].str.cat(others=couples_pd['Destination'],sep='+').rename("NewKey"),
+                                       'NewSource': couples_pd['Source'],
+                                       'NewDestination': couples_pd['Destination'],
+                                       'NewTravelDuration': 0,
+                                       'NewTravelDistance': 0})
+        
+        query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
+        x.getpastqueries(server, db, query)
+        
+        x.cleanqueries()
+        
+        print("\nExtracting Travel distances and Travel times for country: " + str(country))
+        x.extractdtfrombing("BingMapsKey.txt")
+            
+        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
     
     
     
