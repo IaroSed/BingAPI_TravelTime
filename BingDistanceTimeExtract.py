@@ -59,8 +59,14 @@ class BingMapsDTExtract:
             length      - Optional  : character length of bar (Int)
             fill        - Optional  : bar fill character (Str)
         """
-        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-        filledLength = int(length * iteration // total)
+        try:
+            percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        except:
+            percent = 0
+        try:
+            filledLength = int(length * iteration // total)
+        except:
+             filledLength = 0   
         bar = fill * filledLength + '-' * (length - filledLength)
         print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
         # Print New Line on Complete
@@ -508,7 +514,10 @@ def main():
     x.storequeries(server,db, 'Account_Addresses_done', 'Account_Addresses_error')
     '''
     
-    Countries = ['Germany', 'United Kingdom', 'United States', 'Canada']
+    
+    '''
+    #Countries = []
+    Countries = ['United States']
     
     import sqlalchemy
     import pandas as pd
@@ -523,7 +532,7 @@ def main():
             
         engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
         
-        query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
         #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = 'United States'"    
     
         
@@ -531,13 +540,14 @@ def main():
     
         
         
-        query =query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
+        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
         #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
             
         account = pd.read_sql(query,con=engine)
     
         
         couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
+        
         
         labels = ['Source', 'Destination']
         couples_pd = pd.DataFrame.from_records(couples, columns=labels)
@@ -547,8 +557,9 @@ def main():
                                        'NewDestination': couples_pd['Destination'],
                                        'NewTravelDuration': 0,
                                        'NewTravelDistance': 0})
+    
         
-        query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
+        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
         x.getpastqueries(server, db, query)
         
         x.cleanqueries()
@@ -557,7 +568,39 @@ def main():
         x.extractdtfrombing("BingMapsKey.txt")
             
         x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
+    '''
     
+    import sqlalchemy
+    import pandas as pd
+    import itertools
+    import time
+    
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    encoding='utf-8'
+    driver = 'SQL+Server'
+        
+    engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
+    
+    for count in range(140,1000):
+        print(count)
+    
+        query ="SELECT DISTINCT [NewKey],[NewSource],[NewDestination],[NewTravelDuration],[NewTravelDistance] FROM [IARODB].[dbo].[US_Couples] WHERE [ID] LIKE '"+str(count)+"%'"\
+        
+        x.new = pd.read_sql(query,con=engine)
+        
+        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
+        x.getpastqueries(server, db, query)
+        
+        x.cleanqueries()
+        
+        print("\nExtracting Travel distances and Travel times for country: United States")
+        x.extractdtfrombing("BingMapsKey.txt")
+            
+        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
+        
+        time.sleep(5)
+        
     
     
     '''
