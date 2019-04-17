@@ -493,42 +493,64 @@ def main():
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT [Address] FROM [dbo].[AE_Addresses]"
+    query ="SELECT [Address] FROM [dbo].[AE_Addresses_additional]"
     x.getnewaddresses(server, db, query)
     
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
+    
+    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_error.csv", index=False, encoding='utf_8_sig')
+    
+    #x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
+    
     '''
+    
+    
     
     '''
     # Code to to get exact coordinates for Accounts
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT [Address] FROM [dbo].[Account_Addresses]"
+    query ="SELECT [Address] FROM [dbo].[Account_Addresses] WHERE [AreaName] IN ('Western Europe','Latam','Germany','United States','Australia','India','UK','Canada','France')"
     x.getnewaddresses(server, db, query)
+    
+    #print(x.new)
     
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
-    x.storequeries(server,db, 'Account_Addresses_done', 'Account_Addresses_error')
+    #print(x.donequeries)
+    
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
+
+    
+    #x.storequeries(server,db, 'China_AE_done', 'China_AE_error')
+    
     '''
     
     
-    '''
-    #Countries = []
-    Countries = ['United States']
+    
+
+    
+    #Travel and time distances for all countries except US
+    Countries = ['Qatar',	'Latvia',	'Jordan',	'Iceland',	'Algeria',	'Estonia',	'Myanmar',	'Croatia',	'Bahrain',	'Puerto Rico',	'Peru',	'Tunisia',	'Namibia',	'Greece',	'Morocco',	'Costa Rica',	'Oman',	'Ecuador',	'Georgia',	'Bosnia and Herzegovina',	'Kuwait',	'Botswana',	'Angola',	'Panama',	'Macedonia, FYRO',	'Dominican Republic',	'Belarus',	'Guatemala',	'Tanzania',	'Zambia',	'Trinidad and Tobago',	'Ghana',	'Uganda',	'Moldova',	'Senegal',	'Togo',	'Azerbaijan',	'Cyprus',	'Liechtenstein',	'Ethiopia',	'Cameroon',	'Macao SAR',	'Armenia',	'Mali',	'Malta',	'Burkina Faso',	'Brunei',	'Nepal',	'Rwanda',	'Greenland',	'Malawi',	'Montenegro',	'Albania',	'Gabon',	'Benin',	'Palestinian Authority',	'Barbados',	'Laos',	'Lesotho',	'Andorra',	'Cabo Verde',	'Kosovo',	'Belize',	'Maldives',	'Swaziland',	'U.S. Virgin Islands',	'Bhutan',	'Yemen',	'Bermuda',	'Gibraltar',	'Bahamas',	'Jersey',	'Guyana',	'Faroe Islands',	'Mozambique',	'Papua New Guinea']
     
     import sqlalchemy
     import pandas as pd
     import itertools
     
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
+    encoding='utf-8'
+    driver = 'SQL+Server'
+    
+    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
+    x.getpastqueries(server, db, query)
+    
     for country in Countries:
     
-        server = 'IAROLAPTOP\IAROSQLSERVER'
-        db = 'IARODB'
-        encoding='utf-8'
-        driver = 'SQL+Server'
+        
             
         engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
         
@@ -537,14 +559,13 @@ def main():
     
         
         ae = pd.read_sql(query,con=engine)
-    
-        
+
         
         query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
         #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
             
         account = pd.read_sql(query,con=engine)
-    
+
         
         couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
         
@@ -558,9 +579,7 @@ def main():
                                        'NewTravelDuration': 0,
                                        'NewTravelDistance': 0})
     
-        
-        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
-        x.getpastqueries(server, db, query)
+
         
         x.cleanqueries()
         
@@ -568,11 +587,15 @@ def main():
         x.extractdtfrombing("BingMapsKey.txt")
             
         x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
+    
+    
+
+    
     '''
+    #Travel and distances for the US
     
     import sqlalchemy
     import pandas as pd
-    import itertools
     import time
     
     server = 'IAROLAPTOP\IAROSQLSERVER'
@@ -582,7 +605,7 @@ def main():
         
     engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
     
-    for count in range(140,1000):
+    for count in range(0,10000):
         print(count)
     
         query ="SELECT DISTINCT [NewKey],[NewSource],[NewDestination],[NewTravelDuration],[NewTravelDistance] FROM [IARODB].[dbo].[US_Couples] WHERE [ID] LIKE '"+str(count)+"%'"\
@@ -599,80 +622,42 @@ def main():
             
         x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
         
-        time.sleep(5)
-        
-    
-    
+        #time.sleep(2)
+   
     '''
-    # Code to get travel time and travel distance
-    Countries = ['Puerto Rico', 'Peru', 'Tunisia', 'Namibia', 'Greece', 'Croatia', 'Bahrain']
-    
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    for country in Countries:
-            
-        query ="SELECT [Source],[Destination] FROM [dbo].[ListAccounts] WHERE [Country] = '" + str(country) + "'"
-        x.getnewqueries(server, db, query)
-     
-        query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
-        x.getpastqueries(server, db, query)
-    
-        x.cleanqueries()
-        
-        print("\nExtracting Travel distances and Travel times for country: " + str(country))
-        x.extractdtfrombing("BingMapsKey.txt")
-        
-        x.storequeries(server,db)
-        
-       
-    query ="SELECT [Source],[Destination] FROM [dbo].[Errors]"
-    x.getnewqueries(server, db, query)    
-    
-    print("\nExtracting Travel distances and Travel times for errors")
-    x.extractdtfrombing_obo("BingMapsKey.txt")
-    
-    x.storequeries(server,db, 'PastQuerries', 'Errors')
-    '''
+
     
     '''
     #Code to go over the Errors one by one
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[Errors]"
-    x.getnewqueries(server, db, query)
+    for count in range(1,10):
+        print(count)
     
-    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
-    x.getpastqueries(server, db, query)
-    
-    x.cleanqueries()
-    
-    x.extractdtfrombing_obo("BingMapsKey.txt")
-    
-    x.storequeries(server,db,'PastQueries', 'Errors')
+        query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[TravelTimesErrors] WHERE [ID] LIKE '"+str(count)+"%'"
+
+        x.getnewqueries(server, db, query)
+        
+        print("Getting old queries")
+        
+        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
+        x.getpastqueries(server, db, query)
+        
+        print("Cleaning queries")
+        
+        x.cleanqueries()
+        
+        print("Exctracting distances and times")
+        
+        x.extractdtfrombing_obo("BingMapsKey.txt")
+        
+        print("Storing results")
+        
+        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors_final')
     '''
-    
-    '''
-    # Code to get travel time and travel distance (all countries)
-    
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
     
 
-    query ="SELECT [Source],[Destination] FROM [dbo].[NewQueries]"
-    x.getnewqueries(server, db, query)
- 
-    query ="SELECT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[PastQueries]"
-    x.getpastqueries(server, db, query)
-
-    x.cleanqueries()
-    
-    print("\nExtracting Travel distances and Travel times")
-    x.extractdtfrombing("BingMapsKey.txt")
-    
-    x.storequeries(server,db,'PastQueries', 'Errors')
-    '''
 
     end = time.time()-start
     print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
@@ -680,6 +665,13 @@ def main():
          
     
 
+
 if __name__ == '__main__':
     
     main()
+
+
+
+
+
+#x.storequeries(server,db, 'China_AE_done', 'China_AE_error')
