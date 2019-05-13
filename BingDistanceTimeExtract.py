@@ -332,7 +332,7 @@ class BingMapsDTExtract:
                 routeUrl = routeUrl + "&wp.0="+ encodedSource + "&wp.1="+ encodedDest + "&key=" + bingMapsKey
                 
                 try:
-                    request = urllib.request.Request(routeUrl)
+                    request = urllib .request.Request(routeUrl)
                     response = urllib.request.urlopen(request)
                 
                     r = response.read().decode(encoding="utf-8")
@@ -424,8 +424,8 @@ class BingMapsDTExtract:
         
             try:
 
-                self.latitude.iloc[i] = result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0]
-                self.longitude.iloc[i] = result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1]
+                self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
+                self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
                                         
             except:
                 #result may be empty
@@ -487,54 +487,44 @@ def main():
     x = BingMapsDTExtract()
     
     #print(x.__doc__)
+
     
     '''
-    # Code to to get exact coordinates for Account Executives
+    #Code to go over the Errors one by one
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT [Address] FROM [dbo].[AE_Addresses_additional]"
-    x.getnewaddresses(server, db, query)
+    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
+    x.getpastqueries(server, db, query)
     
-    x.extractcoorfrombing_obo("BingMapsKey.txt")
+    for count in range(0,10):
+        print(count)
     
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
-    
-    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_error.csv", index=False, encoding='utf_8_sig')
-    
-    #x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
-    
+        query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[TravelTimesErrors_sav] WHERE [ID] LIKE '"+str(count)+"%'"
+        x.getnewqueries(server, db, query)
+        
+        print("Getting old queries")
+        
+        print("Cleaning queries")
+        
+        x.cleanqueries()
+        
+        print("Exctracting distances and times")
+        
+        x.extractdtfrombing_obo("BingMapsKey.txt")
+        
+        print("Storing results")
+        
+        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors_final')
     '''
-    
-    
-    
-    '''
-    # Code to to get exact coordinates for Accounts
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    query ="SELECT [Address] FROM [dbo].[Account_Addresses] WHERE [AreaName] IN ('Western Europe','Latam','Germany','United States','Australia','India','UK','Canada','France')"
-    x.getnewaddresses(server, db, query)
-    
-    #print(x.new)
-    
-    x.extractcoorfrombing_obo("BingMapsKey.txt")
-    
-    #print(x.donequeries)
-    
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
 
-    
-    #x.storequeries(server,db, 'China_AE_done', 'China_AE_error')
-    
     '''
+    #Travel and time distances for all countries except US 
+    #Countries = ['USA - South Central',	'USA - Education',	'USA - Northeast',	'USA - North Central',	'USA - Southeast',	'USA - West',	'USA - Great Lakes',	'USA - Healthcare',	'USA - SLG',	'USA - FSI',	'USA - Federal',	'Germany',	'UK',	'Ireland',	'South Africa',	'New Zealand',	'Chile',	'Gulf',	'Spain',	'Japan',	'Portugal',	'Israel',	'Italy',	'Australia',	'Saudi Arabia',	'Korea',	'India',	'Argentina',	'Belgium',	'Mexico',	'Slovakia and Czech Republic',	'Taiwan',	'Vietnam',	'Russia',	'Poland',	'Hungary',	'Austria',	'Norway',	'Canada',	'South Region LATAM',	'Switzerland',	'Sweden',	'Finland',	'Denmark',	'Netherlands',	'Colombia',	'Thailand',	'Brazil',	'Malaysia',	'Singapore',	'China',	'Philippines',	'France',	'Indonesia',	'Central Region LATAM',	'MEA MCC',	'CEE MC Europe',	'Hong Kong',	'Egypt',	'Caribbean Region LATAM',	'Turkey',	'CEE MC CIS',	'Romania',	'SEA New Markets',	'Greece']
+    Countries = ['USA - Federal']
     
+    #Done: 'USA - South Central', 'USA - Northeast','USA - North Central', 'USA - Southeast', 'USA - West', 'USA - Great Lakes', 'USA - FSI','Germany',	'UK',	'Ireland',	'South Africa',	'New Zealand',	'Chile',	'Gulf',	'Spain',	'Japan',	'Portugal',	'Israel',	'Italy', 'Australia',	'Saudi Arabia',
     
-    
-
-    
-    #Travel and time distances for all countries except US
-    Countries = ['Qatar',	'Latvia',	'Jordan',	'Iceland',	'Algeria',	'Estonia',	'Myanmar',	'Croatia',	'Bahrain',	'Puerto Rico',	'Peru',	'Tunisia',	'Namibia',	'Greece',	'Morocco',	'Costa Rica',	'Oman',	'Ecuador',	'Georgia',	'Bosnia and Herzegovina',	'Kuwait',	'Botswana',	'Angola',	'Panama',	'Macedonia, FYRO',	'Dominican Republic',	'Belarus',	'Guatemala',	'Tanzania',	'Zambia',	'Trinidad and Tobago',	'Ghana',	'Uganda',	'Moldova',	'Senegal',	'Togo',	'Azerbaijan',	'Cyprus',	'Liechtenstein',	'Ethiopia',	'Cameroon',	'Macao SAR',	'Armenia',	'Mali',	'Malta',	'Burkina Faso',	'Brunei',	'Nepal',	'Rwanda',	'Greenland',	'Malawi',	'Montenegro',	'Albania',	'Gabon',	'Benin',	'Palestinian Authority',	'Barbados',	'Laos',	'Lesotho',	'Andorra',	'Cabo Verde',	'Kosovo',	'Belize',	'Maldives',	'Swaziland',	'U.S. Virgin Islands',	'Bhutan',	'Yemen',	'Bermuda',	'Gibraltar',	'Bahamas',	'Jersey',	'Guyana',	'Faroe Islands',	'Mozambique',	'Papua New Guinea']
     
     import sqlalchemy
     import pandas as pd
@@ -545,7 +535,7 @@ def main():
     encoding='utf-8'
     driver = 'SQL+Server'
     
-    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
+    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [TravelTimesAndDistances].[TravelTimesAndDistances_data]"
     x.getpastqueries(server, db, query)
     
     for country in Countries:
@@ -554,15 +544,13 @@ def main():
             
         engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
         
-        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = '" + str(country) + "'"
-        #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Source, [Country] FROM [dbo].[AE_Addresses_done] WHERE [Country] = 'United States'"    
-    
+        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Source, [SubRegionEOU] FROM [TravelTimesAndDistances].[FTE_data_201904] WHERE [SubRegionEOU] = '" + str(country) + "'"
+
         
         ae = pd.read_sql(query,con=engine)
 
         
-        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = '" + str(country) + "'"
-        #query ="SELECT CONCAT([Latitude],',',[Longitude]) AS Destination, [Country] FROM [dbo].[Account_Addresses_done] WHERE [Country] = 'United States'"
+        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Destination, [SubRegionEOU] FROM [TravelTimesAndDistances].[Account_data_201904] WHERE [SubRegionEOU] = '" + str(country) + "'"
             
         account = pd.read_sql(query,con=engine)
 
@@ -587,76 +575,47 @@ def main():
         x.extractdtfrombing("BingMapsKey.txt")
             
         x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
-    
-    
-
-    
     '''
-    #Travel and distances for the US
+       
     
-    import sqlalchemy
-    import pandas as pd
-    import time
-    
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    encoding='utf-8'
-    driver = 'SQL+Server'
-        
-    engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
-    
-    for count in range(0,10000):
-        print(count)
-    
-        query ="SELECT DISTINCT [NewKey],[NewSource],[NewDestination],[NewTravelDuration],[NewTravelDistance] FROM [IARODB].[dbo].[US_Couples] WHERE [ID] LIKE '"+str(count)+"%'"\
-        
-        x.new = pd.read_sql(query,con=engine)
-        
-        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
-        x.getpastqueries(server, db, query)
-        
-        x.cleanqueries()
-        
-        print("\nExtracting Travel distances and Travel times for country: United States")
-        x.extractdtfrombing("BingMapsKey.txt")
-            
-        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
-        
-        #time.sleep(2)
-   
-    '''
-
-    
-    '''
-    #Code to go over the Errors one by one
+    # Code to to get exact coordinates for Account Executives
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    for count in range(1,10):
-        print(count)
+    query ="SELECT [Address] FROM [dbo].[AE_Addresses_additional]"
+    x.getnewaddresses(server, db, query)
     
-        query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[TravelTimesErrors] WHERE [ID] LIKE '"+str(count)+"%'"
-
-        x.getnewqueries(server, db, query)
-        
-        print("Getting old queries")
-        
-        query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
-        x.getpastqueries(server, db, query)
-        
-        print("Cleaning queries")
-        
-        x.cleanqueries()
-        
-        print("Exctracting distances and times")
-        
-        x.extractdtfrombing_obo("BingMapsKey.txt")
-        
-        print("Storing results")
-        
-        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors_final')
+    x.extractcoorfrombing_obo("BingMapsKey.txt")
+    
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
+    
+    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_error.csv", index=False, encoding='utf_8_sig')
+    
+    #x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
+    
+    
+    
+    
+    
     '''
+    # Code to to get exact coordinates for Accounts
+    server = 'IAROLAPTOP\IAROSQLSERVER'
+    db = 'IARODB'
     
+    query ="SELECT [Address] FROM [dbo].[Account_Addresses] WHERE [AreaName] IN ('Western Europe','Latam','Germany','United States','Australia','India','UK','Canada','France')"
+    x.getnewaddresses(server, db, query)
+    
+    #print(x.new)
+    
+    x.extractcoorfrombing_obo("BingMapsKey.txt")
+    
+    #print(x.donequeries)
+    
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
+    
+    #x.storequeries(server,db, 'China_AE_done', 'China_AE_error')
+    
+    ''' 
 
 
     end = time.time()-start
