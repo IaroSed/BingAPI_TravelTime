@@ -183,11 +183,15 @@ class BingMapsDTExtract:
         #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
         self.new = pd.DataFrame({'Address': NewQueries['Address'],
                                    'Latitude': 0,
-                                   'Longitude': 0})
+                                   'Longitude': 0,
+                                   'Country_check' : 0,
+                                   'Confidence' : 0})
     
         self.address = self.new['Address']
         self.latitude = self.new['Latitude']
         self.longitude = self.new['Longitude']
+        self.country_check= self.new['Country_check']
+        self.confidence= self.new['Confidence']
         
         
     def getnewaddresses_segmented(self,server,db,query):    
@@ -567,6 +571,8 @@ class BingMapsDTExtract:
 
                 self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
                 self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.country_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["countryRegion"])
+                self.confidence.iloc[i] = str(result["resourceSets"][0]["resources"][0]["confidence"])
                                         
             except:
                 #result may be empty
@@ -580,8 +586,10 @@ class BingMapsDTExtract:
         #Creating the DataFrame containing the couples (Source Destination) for which we got a Travel Duration and Travel Distance
         
         self.donequeries  = pd.DataFrame({'Adresses': self.address,
-                          'Latitude': self.latitude,
-                          'Longitude': self.longitude})[error_mask]
+                                          'Latitude': self.latitude,
+                                          'Longitude': self.longitude,
+                                          'Country_check' : self.country_check,
+                                          'Confidence' : self.confidence})[error_mask]
 
             
         #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
@@ -629,34 +637,9 @@ def main():
     
     #print(x.__doc__)
     
-    
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    query ="SELECT [countryRegion],[adminDistrict],[locality],[postalCode],[addressLine] FROM [dbo].[Check_Addresses] WHERE [SegmentGroup] = 'Enterprise'"
-    x.getnewaddresses_segmented(server, db, query)
-    
-    x.extractcoorfrombing_obo_segmented("BingMapsKey.txt")
-    
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Segmented_addresses_done.csv", index=False, encoding='utf_8_sig')
-    
-    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Segmented_addresses_error.csv", index=False, encoding='utf_8_sig')
-    
-    #x.storequeries(server,db, 'FTE_Addresses_done', 'FTE_Addresses_error')
-    
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    query ="SELECT [Address] FROM [dbo].[Check_Addresses] WHERE [SegmentGroup] = 'Enterprise'"
-    x.getnewaddresses(server, db, query)
-    
-    x.extractcoorfrombing_obo("BingMapsKey.txt")
-    
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Regular_addresses_done.csv", index=False, encoding='utf_8_sig')
-    
-    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Regular_addresses_error.csv", index=False, encoding='utf_8_sig')
-    
-    #x.storequeries(server,db, 'FTE_Addresses_done', 'FTE_Addresses_error')
+
+    # Write your code here
+
 
 
 
