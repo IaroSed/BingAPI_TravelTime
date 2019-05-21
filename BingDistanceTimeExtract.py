@@ -75,13 +75,13 @@ class BingMapsDTExtract:
 
         
     def getnewqueries(self,server,db,query):
-        ''' Extracting new source and destination information from SQL Server
+        """ Extracting new source and destination information from SQL Server
         @params:
             server   - Required  :  SQL Server name (Str)
             db:      - Required  :  Data Base name (Str)
             query    - Required  : SQL query (Str)
         NB: This methods expects to receive two columns: [Source] and [Destination]
-        '''
+        """
         
         import sqlalchemy
         import pandas as pd
@@ -106,13 +106,13 @@ class BingMapsDTExtract:
 
     
     def getpastqueries(self,server,db,query):
-        ''' Extracting past queries to avoid overusing the Bing API
+        """ Extracting past queries to avoid overusing the Bing API
         @params:
             server   - Required  :  SQL Server name (Str)
             db:      - Required  :  Data Base name (Str)
             query    - Required  : SQL query (Str)
         NB: NB: This methods expects to receive five columns: [KeyID],[Source],[Destination],[TravelDuration] and [TravelDistance]
-        '''
+        """
         
         import sqlalchemy
         import pandas as pd
@@ -130,9 +130,9 @@ class BingMapsDTExtract:
 
     
     def cleanqueries(self):
-        ''' Creating a mask that will select queries never made in the past (that are not in PastQueries table). 
+        """ Creating a mask that will select queries never made in the past (that are not in PastQueries table). 
          Using a LEFT merge on the Key created above and selecting the ones with NA (not in PastQueries)
-         '''
+        """
         
         import pandas as pd
 
@@ -159,13 +159,13 @@ class BingMapsDTExtract:
 
     
     def getnewaddresses(self,server,db,query):    
-        ''' Extracting new addresses to get exact coordinates from Bing API
+        """ Extracting new addresses to get exact coordinates from Bing API
         @params:
             server   - Required  :  SQL Server name (Str)
             db:      - Required  :  Data Base name (Str)
             query    - Required  : SQL query (Str)
         NB: This methods expects to receive one column: [Address]
-        '''
+        """
         
         import sqlalchemy
         import pandas as pd
@@ -190,13 +190,58 @@ class BingMapsDTExtract:
         self.longitude = self.new['Longitude']
         
         
+    def getnewaddresses_segmented(self,server,db,query):    
+        """ Extracting new addresses to get exact coordinates from Bing API
+        @params:
+            server   - Required  :  SQL Server name (Str)
+            db:      - Required  :  Data Base name (Str)
+            query    - Required  : SQL query (Str)
+        NB: This methods expects to receive one column: [countryRegion],[adminDistrict],[locality],[postalCode],[addressLine]
+        """
+        
+        import sqlalchemy
+        import pandas as pd
+        
+        self.server = server
+        self.db = db
+        self.query = query
+        
+        encoding='utf-8'
+        driver = 'SQL+Server'      
+        engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(self.server, self.db, driver, encoding))
+
+        NewQueries = pd.read_sql(self.query,con=engine)
+        
+        #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
+        self.new = pd.DataFrame({'countryRegion': NewQueries['countryRegion'],
+                                 'adminDistrict': NewQueries['adminDistrict'],
+                                 'locality': NewQueries['locality'],
+                                 'postalCode': NewQueries['postalCode'],
+                                 'addressLine': NewQueries['addressLine'],
+                                   'Latitude': 0,
+                                   'Longitude': 0,
+                                   'Country_check' : 0,
+                                   'Confidence' : 0
+                                   })
+    
+        self.countryregion = self.new['countryRegion']
+        self.admindistrict = self.new['adminDistrict']
+        self.locality = self.new['locality']
+        self.postalcode = self.new['postalCode']
+        self.addressline = self.new['addressLine']
+        self.latitude = self.new['Latitude']
+        self.longitude = self.new['Longitude']
+        self.country_check= self.new['Country_check']
+        self.confidence= self.new['Confidence']
+        
+        
     
     
     def extractdtfrombing(self, file):
-        '''Extracting the TravelDuration and TravelTime using BingAPI
+        """Extracting the TravelDuration and TravelTime using BingAPI
         @params:
             file     - Required  :   path to the file where the BingMapsKey is stored (Str)
-        '''
+        """
         
         import urllib.request
         import json
@@ -292,10 +337,10 @@ class BingMapsDTExtract:
 
 
     def extractdtfrombing_obo(self, file):
-        '''Extracting the TravelDuration and TravelTime using BingAPI one by one (obo)
+        """Extracting the TravelDuration and TravelTime using BingAPI one by one (obo)
         @params:
             file     - Required  :   path to the file where the BingMapsKey is stored (Str)
-        '''
+        """
         
         import urllib.request
         import json
@@ -376,11 +421,107 @@ class BingMapsDTExtract:
      
         
         
-    def extractcoorfrombing_obo(self, file):
-        '''Extracting the Latitude and Longitude using BingAPI one by one (obo)
+    def extractcoorfrombing_obo_segmented(self, file):
+        """Extracting the Latitude and Longitude using BingAPI one by one (obo) on segmented addresses
         @params:
             file     - Required  :   path to the file where the BingMapsKey is stored (Str)
-        '''
+        """
+        
+        import urllib.request
+        import json
+        import pandas as pd
+        
+        len_a = len(self.addressline)
+        
+        # Your Bing Maps Key 
+        bingMapsKey =  open(file, 'r').read()
+        
+        #Variables to log indexes of errors
+        self.error_indexes = []
+        all_indexes = list(range(0,len_a))
+        
+        self._printprogressbar(0, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            
+        warning = ""
+            
+        indexes = []
+        
+        self.countryregion = self.new['countryRegion']
+        self.admindistrict = self.new['adminDistrict']
+        self.locality = self.new['locality']
+        self.postalcode = self.new['postalCode']
+        self.addressline = self.new['addressLine']
+            
+        for i in range(0,len_a):
+
+            routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
+                
+            indexes.append(i)
+                        
+            encoded_countryregion = urllib.parse.quote(str(self.countryregion.iloc[i]), safe='')
+            encoded_admindistrict = urllib.parse.quote(str(self.admindistrict.iloc[i]), safe='')
+            encoded_locality= urllib.parse.quote(str(self.locality.iloc[i]), safe='')
+            encoded_postalcode = urllib.parse.quote(str(self.postalcode.iloc[i]), safe='')
+            encoded_addressline= urllib.parse.quote(str(self.addressline.iloc[i]), safe='')
+                
+            routeUrl = routeUrl + "?countryRegion="+ encoded_countryregion +"&adminDistrict="+ encoded_admindistrict + "&locality="+ encoded_locality + "&postalCode=" + encoded_postalcode + "&addressLine=" + encoded_addressline + "&key=" + bingMapsKey
+            #print(routeUrl)
+            
+            try:
+                request = urllib.request.Request(routeUrl)
+                response = urllib.request.urlopen(request)
+                
+                r = response.read().decode(encoding="utf-8")
+                result = json.loads(r)
+                    
+            except:
+                self.error_indexes.append(i)
+        
+            try:
+
+                self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
+                self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.country_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["countryRegion"])
+                self.confidence.iloc[i] = str(result["resourceSets"][0]["resources"][0]["confidence"])
+                                        
+            except:
+                #result may be empty
+                warning = "Warning. No results received from Bing API"
+                    
+            self._printprogressbar(i, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    
+        # Preparing the error mask to select the entries with no errors and log the ones with errors
+        error_mask = [i not in self.error_indexes for i in all_indexes]
+            
+        #Creating the DataFrame containing the couples (Source Destination) for which we got a Travel Duration and Travel Distance
+
+        
+        self.donequeries  = pd.DataFrame({'countryRegion': self.countryregion,
+                                          'adminDistrict': self.admindistrict,
+                                          'locality': self.locality,
+                                          'postalCode': self.postalcode,
+                                          'addressLine': self.addressline,
+                                          'Latitude': self.latitude,
+                                          'Longitude': self.longitude,
+                                          'Country_check' : self.country_check,
+                                          'Confidence' : self.confidence
+                                          })[error_mask]
+
+            
+        #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
+        self.errorqueries = pd.DataFrame({'Address': self.addressline})[[not i for i in error_mask]]
+            
+        if (len(self.error_indexes) != 0):
+            print("The script encountered a problem on the following indexes: " + str(self.error_indexes))
+                
+        if (len(warning) != 0):
+            print(warning)
+            
+    def extractcoorfrombing_obo(self, file):
+        """Extracting the Latitude and Longitude using BingAPI one by one (obo)
+        @params:
+            file     - Required  :   path to the file where the BingMapsKey is stored (Str)
+        """
         
         import urllib.request
         import json
@@ -455,13 +596,13 @@ class BingMapsDTExtract:
                     
                     
     def storequeries(self, server, db, table_done, table_errors):
-        '''Storing the results and errors in SQL
+        """Storing the results and errors in SQL
         @params: 
             server          - Required  :  SQL Server name (Str)
             db:             - Required  :  Data Base name (Str)
             table_done:     - Required  :  Table name to store the good results (Str)
             table_errors:   - Required  :  Table name to store the errors (Str)
-        '''
+        """
         
         import sqlalchemy
         
@@ -487,135 +628,38 @@ def main():
     x = BingMapsDTExtract()
     
     #print(x.__doc__)
-
     
-    '''
-    #Code to go over the Errors one by one
+    
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
     
-    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [dbo].[TravelTimes]"
-    x.getpastqueries(server, db, query)
+    query ="SELECT [countryRegion],[adminDistrict],[locality],[postalCode],[addressLine] FROM [dbo].[Check_Addresses] WHERE [SegmentGroup] = 'Enterprise'"
+    x.getnewaddresses_segmented(server, db, query)
     
-    for count in range(0,10):
-        print(count)
+    x.extractcoorfrombing_obo_segmented("BingMapsKey.txt")
     
-        query ="SELECT DISTINCT [Source],[Destination] FROM [dbo].[TravelTimesErrors_sav] WHERE [ID] LIKE '"+str(count)+"%'"
-        x.getnewqueries(server, db, query)
-        
-        print("Getting old queries")
-        
-        print("Cleaning queries")
-        
-        x.cleanqueries()
-        
-        print("Exctracting distances and times")
-        
-        x.extractdtfrombing_obo("BingMapsKey.txt")
-        
-        print("Storing results")
-        
-        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors_final')
-    '''
-
-    '''
-    #Travel and time distances for all countries except US 
-    #Countries = ['USA - South Central',	'USA - Education',	'USA - Northeast',	'USA - North Central',	'USA - Southeast',	'USA - West',	'USA - Great Lakes',	'USA - Healthcare',	'USA - SLG',	'USA - FSI',	'USA - Federal',	'Germany',	'UK',	'Ireland',	'South Africa',	'New Zealand',	'Chile',	'Gulf',	'Spain',	'Japan',	'Portugal',	'Israel',	'Italy',	'Australia',	'Saudi Arabia',	'Korea',	'India',	'Argentina',	'Belgium',	'Mexico',	'Slovakia and Czech Republic',	'Taiwan',	'Vietnam',	'Russia',	'Poland',	'Hungary',	'Austria',	'Norway',	'Canada',	'South Region LATAM',	'Switzerland',	'Sweden',	'Finland',	'Denmark',	'Netherlands',	'Colombia',	'Thailand',	'Brazil',	'Malaysia',	'Singapore',	'China',	'Philippines',	'France',	'Indonesia',	'Central Region LATAM',	'MEA MCC',	'CEE MC Europe',	'Hong Kong',	'Egypt',	'Caribbean Region LATAM',	'Turkey',	'CEE MC CIS',	'Romania',	'SEA New Markets',	'Greece']
-    Countries = ['USA - Federal']
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Segmented_addresses_done.csv", index=False, encoding='utf_8_sig')
     
-    #Done: 'USA - South Central', 'USA - Northeast','USA - North Central', 'USA - Southeast', 'USA - West', 'USA - Great Lakes', 'USA - FSI','Germany',	'UK',	'Ireland',	'South Africa',	'New Zealand',	'Chile',	'Gulf',	'Spain',	'Japan',	'Portugal',	'Israel',	'Italy', 'Australia',	'Saudi Arabia',
+    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Segmented_addresses_error.csv", index=False, encoding='utf_8_sig')
     
-    
-    import sqlalchemy
-    import pandas as pd
-    import itertools
+    #x.storequeries(server,db, 'FTE_Addresses_done', 'FTE_Addresses_error')
     
     server = 'IAROLAPTOP\IAROSQLSERVER'
     db = 'IARODB'
-    encoding='utf-8'
-    driver = 'SQL+Server'
     
-    query ="SELECT DISTINCT [KeyID],[Source],[Destination],[TravelDuration],[TravelDistance] FROM [TravelTimesAndDistances].[TravelTimesAndDistances_data]"
-    x.getpastqueries(server, db, query)
-    
-    for country in Countries:
-    
-        
-            
-        engine = sqlalchemy.create_engine('mssql+pyodbc://{}/{}?driver={}?encoding={}'.format(server, db, driver,encoding))
-        
-        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Source, [SubRegionEOU] FROM [TravelTimesAndDistances].[FTE_data_201904] WHERE [SubRegionEOU] = '" + str(country) + "'"
-
-        
-        ae = pd.read_sql(query,con=engine)
-
-        
-        query ="SELECT DISTINCT CONCAT([Latitude],',',[Longitude]) AS Destination, [SubRegionEOU] FROM [TravelTimesAndDistances].[Account_data_201904] WHERE [SubRegionEOU] = '" + str(country) + "'"
-            
-        account = pd.read_sql(query,con=engine)
-
-        
-        couples = list(itertools.product(ae['Source'].values.tolist(), account['Destination'].values.tolist()))
-        
-        
-        labels = ['Source', 'Destination']
-        couples_pd = pd.DataFrame.from_records(couples, columns=labels)
-        
-        x.new = pd.DataFrame({'NewKey': couples_pd['Source'].str.cat(others=couples_pd['Destination'],sep='+').rename("NewKey"),
-                                       'NewSource': couples_pd['Source'],
-                                       'NewDestination': couples_pd['Destination'],
-                                       'NewTravelDuration': 0,
-                                       'NewTravelDistance': 0})
-    
-
-        
-        x.cleanqueries()
-        
-        print("\nExtracting Travel distances and Travel times for country: " + str(country))
-        x.extractdtfrombing("BingMapsKey.txt")
-            
-        x.storequeries(server,db,'TravelTimes', 'TravelTimesErrors')
-    '''
-       
-    
-    # Code to to get exact coordinates for Account Executives
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    query ="SELECT [Address] FROM [dbo].[AE_Addresses_additional]"
+    query ="SELECT [Address] FROM [dbo].[Check_Addresses] WHERE [SegmentGroup] = 'Enterprise'"
     x.getnewaddresses(server, db, query)
     
     x.extractcoorfrombing_obo("BingMapsKey.txt")
     
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
+    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Regular_addresses_done.csv", index=False, encoding='utf_8_sig')
     
-    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_error.csv", index=False, encoding='utf_8_sig')
+    x.errorqueries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\Regular_addresses_error.csv", index=False, encoding='utf_8_sig')
     
-    #x.storequeries(server,db, 'AE_Addresses_done', 'AE_Addresses_error')
-    
-    
-    
-    
-    
-    '''
-    # Code to to get exact coordinates for Accounts
-    server = 'IAROLAPTOP\IAROSQLSERVER'
-    db = 'IARODB'
-    
-    query ="SELECT [Address] FROM [dbo].[Account_Addresses] WHERE [AreaName] IN ('Western Europe','Latam','Germany','United States','Australia','India','UK','Canada','France')"
-    x.getnewaddresses(server, db, query)
-    
-    #print(x.new)
-    
-    x.extractcoorfrombing_obo("BingMapsKey.txt")
-    
-    #print(x.donequeries)
-    
-    x.donequeries.to_csv(r"C:\Users\iasedric.REDMOND\Documents\_Corp\04_ABA\Distances Cities\AE_addresses_done.csv", index=False, encoding='utf_8_sig')
-    
-    #x.storequeries(server,db, 'China_AE_done', 'China_AE_error')
-    
-    ''' 
+    #x.storequeries(server,db, 'FTE_Addresses_done', 'FTE_Addresses_error')
+
+
+
 
 
     end = time.time()-start
