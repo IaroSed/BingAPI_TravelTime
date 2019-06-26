@@ -193,6 +193,32 @@ class BingMapsDTExtract:
         self.country_check= self.new['Country_check']
         self.confidence= self.new['Confidence']
         
+    def getnewaddresses_xls(self,path):    
+        """ Extracting new addresses to get exact coordinates from Bing API
+        @params:
+            server   - Required  :  SQL Server name (Str)
+            db:      - Required  :  Data Base name (Str)
+            query    - Required  : SQL query (Str)
+        NB: This methods expects to receive one column: [Address]
+        """
+
+        import pandas as pd
+
+        NewQueries = pd.read_excel(path, index_col=0)
+        
+        #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
+        self.new = pd.DataFrame({'Address': NewQueries['Address'],
+                                   'Latitude': 0,
+                                   'Longitude': 0,
+                                   'Country_check' : 0,
+                                   'Confidence' : 0})
+    
+        self.address = self.new['Address']
+        self.latitude = self.new['Latitude']
+        self.longitude = self.new['Longitude']
+        self.country_check= self.new['Country_check']
+        self.confidence= self.new['Confidence']
+        
         
     def getnewaddresses_segmented(self,server,db,query):    
         """ Extracting new addresses to get exact coordinates from Bing API
@@ -225,6 +251,11 @@ class BingMapsDTExtract:
                                    'Latitude': 0,
                                    'Longitude': 0,
                                    'Country_check' : 0,
+                                   'Admdist_check' : 0,
+                                   'Country_check_latitude' : 0,
+                                   'Country_check_longitude' : 0,
+                                   'Admdist_check_latitude' : 0,
+                                   'Admdist_check_longitude' : 0,
                                    'Confidence' : 0
                                    })
     
@@ -235,11 +266,56 @@ class BingMapsDTExtract:
         self.addressline = self.new['addressLine']
         self.latitude = self.new['Latitude']
         self.longitude = self.new['Longitude']
-        self.country_check= self.new['Country_check']
+        self.country_check = self.new['Country_check']
+        self.admdist_check = self.new['Admdist_check']
+        self.country_check_latitude = self.new['Country_check_latitude']
+        self.country_check_longitude = self.new['Country_check_longitude']
+        self.admdist_check_latitude = self.new['Admdist_check_latitude']
+        self.admdist_check_longitude = self.new['Admdist_check_longitude']
         self.confidence= self.new['Confidence']
         
         
+    def getnewaddresses_segmented_xls(self,path):    
+        """ Extracting new addresses to get exact coordinates from Bing API
+        @params:
+            path   - Required  :  Path to the file (Str)
+        NB: This methods expects to receive 5 columns: [countryRegion],[adminDistrict],[locality],[postalCode],[addressLine]
+        """
+        import pandas as pd
+        
+        NewQueries = pd.read_excel(path, index_col=0)
+        
+        #Creating additional columns: Key by concatenating Source and Destination, TravelDuration and TravelDistance
+        self.new = pd.DataFrame({'countryRegion': NewQueries['countryRegion'],
+                                 'adminDistrict': NewQueries['adminDistrict'],
+                                 'locality': NewQueries['locality'],
+                                 'postalCode': NewQueries['postalCode'],
+                                 'addressLine': NewQueries['addressLine'],
+                                   'Latitude': 0,
+                                   'Longitude': 0,
+                                   'Country_check' : 0,
+                                   'Admdist_check' : 0,
+                                   'Country_check_latitude' : 0,
+                                   'Country_check_longitude' : 0,
+                                   'Admdist_check_latitude' : 0,
+                                   'Admdist_check_longitude' : 0,
+                                   'Confidence' : 0
+                                   })
     
+        self.countryregion = self.new['countryRegion']
+        self.admindistrict = self.new['adminDistrict']
+        self.locality = self.new['locality']
+        self.postalcode = self.new['postalCode']
+        self.addressline = self.new['addressLine']
+        self.latitude = self.new['Latitude']
+        self.longitude = self.new['Longitude']
+        self.country_check = self.new['Country_check']
+        self.admdist_check = self.new['Admdist_check']
+        self.country_check_latitude = self.new['Country_check_latitude']
+        self.country_check_longitude = self.new['Country_check_longitude']
+        self.admdist_check_latitude = self.new['Admdist_check_latitude']
+        self.admdist_check_longitude = self.new['Admdist_check_longitude']
+        self.confidence= self.new['Confidence']
     
     def extractdtfrombing(self, file):
         """Extracting the TravelDuration and TravelTime using BingAPI
@@ -435,7 +511,7 @@ class BingMapsDTExtract:
         import json
         import pandas as pd
         
-        len_a = len(self.addressline)
+        len_a = len(self.countryregion)
         
         # Your Bing Maps Key 
         bingMapsKey =  open(file, 'r').read()
@@ -486,11 +562,77 @@ class BingMapsDTExtract:
                 self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
                 self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
                 self.country_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["countryRegion"])
+                self.admdist_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["adminDistrict"])
                 self.confidence.iloc[i] = str(result["resourceSets"][0]["resources"][0]["confidence"])
                                         
             except:
                 #result may be empty
                 warning = "Warning. No results received from Bing API"
+                
+            # Getting coordinates of the center of the country
+            routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
+  
+            encodedCountry_check = urllib.parse.quote(str(self.country_check.iloc[i]), safe='')
+  
+            routeUrl = routeUrl + "?countryRegion="+ encodedCountry_check + "&key=" + bingMapsKey
+            
+            #print(routeUrl)
+            
+            try:
+                #print(1)
+                request = urllib.request.Request(routeUrl)
+                #print(2)
+                response = urllib.request.urlopen(request)
+                #print(3)
+                r = response.read().decode(encoding="utf-8")
+                #print(4)
+                result = json.loads(r)
+                #print(result)
+                    
+            except:
+                warning = "Country check coordinates error"
+                #print("Country check coordinates error")
+                
+            try:
+
+                self.country_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
+                self.country_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                                    
+            except:
+                #print("Country check coordinates error")
+                self.country_check_latitude.iloc[i] = 0
+                self.country_check_longitude.iloc[i] = 0
+                
+                
+            # Getting coordinates of the center of the state for the United States
+            if self.countryregion.iloc[i] == "United States":
+                routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
+      
+                encodedCountry_check = urllib.parse.quote(str(self.country_check.iloc[i]), safe='')
+                encodedAdmdist_check = urllib.parse.quote(str(self.admdist_check.iloc[i]), safe='')
+      
+                routeUrl = routeUrl + "?countryRegion="+ encodedCountry_check +"&adminDistrict="+ encodedAdmdist_check + "&key=" + bingMapsKey
+                
+                try:
+                    request = urllib.request.Request(routeUrl)
+                    response = urllib.request.urlopen(request)
+                    
+                    r = response.read().decode(encoding="utf-8")
+                    result = json.loads(r)
+                        
+                except:
+                    warning = "State check coordinates error"
+                    print("State check coordinates error")
+                    
+                try:
+    
+                    self.admdist_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
+                    self.admdist_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                                            
+                except:
+                    print("Country check coordinates error")
+                    self.admdist_check_latitude.iloc[i] = 0
+                    self.admdist_check_longitude.iloc[i] = 0
                     
             self._printprogressbar(i, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
                     
@@ -507,7 +649,11 @@ class BingMapsDTExtract:
                                           'addressLine': self.addressline,
                                           'Latitude': self.latitude,
                                           'Longitude': self.longitude,
-                                          'Country_check' : self.country_check,
+                                          'Country_check' : self.country_check,                                          
+                                          'Country_check_latitude' : self.country_check_latitude,
+                                          'Country_check_longitude' : self.country_check_longitude,
+                                          'Admdist_check_latitude' : self.admdist_check_latitude,
+                                          'Admdist_check_longitude' : self.admdist_check_longitude,
                                           'Confidence' : self.confidence
                                           })[error_mask]
 
@@ -577,6 +723,34 @@ class BingMapsDTExtract:
             except:
                 #result may be empty
                 warning = "Warning. No results received from Bing API"
+                
+                
+            routeUrl = "http://dev.virtualearth.net/REST/v1/Locations" 
+  
+            encodedCountry_check = urllib.parse.quote(str(self.country_check.iloc[i]), safe='')
+  
+            routeUrl = routeUrl + "?countryRegion="+ encodedCountry_check + "&key=" + bingMapsKey
+            
+            try:
+                request = urllib.request.Request(routeUrl)
+                response = urllib.request.urlopen(request)
+                
+                r = response.read().decode(encoding="utf-8")
+                result = json.loads(r)
+                    
+            except:
+                print("Country check coordinates error")
+                
+            try:
+
+                self.country_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
+                self.country_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                                        
+            except:
+                print("Country check coordinates error")
+                self.country_check_latitude.iloc[i] = 0
+                self.country_check_longitude.iloc[i] = 0
+            
                     
             self._printprogressbar(i, len_a, prefix = 'Progress:', suffix = 'Complete', length = 50)
                     
@@ -589,6 +763,8 @@ class BingMapsDTExtract:
                                           'Latitude': self.latitude,
                                           'Longitude': self.longitude,
                                           'Country_check' : self.country_check,
+                                          'Country_check latitude' : self.country_check_latitude,
+                                          'Country_check longitude' : self.country_check_longitude,
                                           'Confidence' : self.confidence})[error_mask]
 
             
@@ -631,6 +807,7 @@ def main():
 
     import time
     
+    
     start = time.time()
     
     x = BingMapsDTExtract()
@@ -640,8 +817,7 @@ def main():
 
     # Write your code here
 
-
-
+        
 
 
 
