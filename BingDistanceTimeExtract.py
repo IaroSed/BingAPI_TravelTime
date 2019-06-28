@@ -559,8 +559,8 @@ class BingMapsDTExtract:
         
             try:
 
-                self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
-                self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.latitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],4))
+                self.longitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],4))
                 self.country_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["countryRegion"])
                 self.admdist_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["adminDistrict"])
                 self.confidence.iloc[i] = str(result["resourceSets"][0]["resources"][0]["confidence"])
@@ -595,8 +595,8 @@ class BingMapsDTExtract:
                 
             try:
 
-                self.country_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
-                self.country_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.country_check_latitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],4))
+                self.country_check_longitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],4))
                                     
             except:
                 #print("Country check coordinates error")
@@ -626,8 +626,8 @@ class BingMapsDTExtract:
                     
                 try:
     
-                    self.admdist_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
-                    self.admdist_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                    self.admdist_check_latitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],4))
+                    self.admdist_check_longitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],4))
                                             
                 except:
                     print("Country check coordinates error")
@@ -649,7 +649,8 @@ class BingMapsDTExtract:
                                           'addressLine': self.addressline,
                                           'Latitude': self.latitude,
                                           'Longitude': self.longitude,
-                                          'Country_check' : self.country_check,                                          
+                                          'Country_check' : self.country_check,  
+                                          'Admdist_check': self.admdist_check,
                                           'Country_check_latitude' : self.country_check_latitude,
                                           'Country_check_longitude' : self.country_check_longitude,
                                           'Admdist_check_latitude' : self.admdist_check_latitude,
@@ -701,7 +702,7 @@ class BingMapsDTExtract:
             encodedAddress = urllib.parse.quote(str(self.address.iloc[i]), safe='')
                 
             routeUrl = routeUrl + "?q="+ encodedAddress+ "&key=" + bingMapsKey
-            #print(routeUrl)
+            print(routeUrl)
             
             try:
                 request = urllib.request.Request(routeUrl)
@@ -715,8 +716,8 @@ class BingMapsDTExtract:
         
             try:
 
-                self.latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
-                self.longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.latitude.iloc[i] = str("%.4f" %round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],4))
+                self.longitude.iloc[i] = str("%.4f" %round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],4))
                 self.country_check.iloc[i] = str(result["resourceSets"][0]["resources"][0]["address"]["countryRegion"])
                 self.confidence.iloc[i] = str(result["resourceSets"][0]["resources"][0]["confidence"])
                                         
@@ -743,8 +744,8 @@ class BingMapsDTExtract:
                 
             try:
 
-                self.country_check_latitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],3)
-                self.country_check_longitude.iloc[i] = round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],3)
+                self.country_check_latitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][0],4))
+                self.country_check_longitude.iloc[i] = str("%.4f" % round(result["resourceSets"][0]["resources"][0]["point"]["coordinates"][1],4))
                                         
             except:
                 print("Country check coordinates error")
@@ -816,10 +817,6 @@ def main():
     
 
     # Write your code here
-
-        
-
-
 
     end = time.time()-start
     print('It took ' + str(round(end,2)) + ' seconds to execute the script.')
