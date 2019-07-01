@@ -101,7 +101,8 @@ class BingMapsDTExtract:
                                    'NewSource': NewQueries['Source'],
                                    'NewDestination': NewQueries['Destination'],
                                    'NewTravelDuration': 0,
-                                   'NewTravelDistance': 0})
+                                   'NewTravelDistance': 0,
+                                   'NewFlightDistance': 0})
 
 
     
@@ -147,6 +148,7 @@ class BingMapsDTExtract:
         self.destination = self.new['NewDestination'][self.query_mask]
         self.travelduration = self.new['NewTravelDuration'][self.query_mask]
         self.traveldistance = self.new['NewTravelDistance'][self.query_mask]
+        self.flightdistance = self.new['NewTravelDistance'][self.query_mask]
         
         #Storing the queries that were already made in the past
         #self.pastqueries = self.new[[not i for i in self.query_mask]]  
@@ -401,10 +403,11 @@ class BingMapsDTExtract:
                           'Source': self.source,
                           'Destination': self.destination,
                           'TravelDuration': self.travelduration,
-                          'TravelDistance': self.traveldistance})[error_mask]
+                          'TravelDistance': self.traveldistance,
+                          'FlightDistance': self.flightdistance})[error_mask]
             
             #Creating the Dataframe containing the couples (Source Destination) for which we couldn't not get the Travel Duration and Travel Distance
-            self.errorqueries = pd.DataFrame({'Source': self.source,'Destination': self.destination})[[not i for i in error_mask]]
+            self.errorqueries = pd.DataFrame({'Source': self.source,'Destination': self.destination, 'FlightDistance': self.flightdistance})[[not i for i in error_mask]]
             
             if (len(self.error_indexes) != 0):
                 print("The script encountered a problem on the following indexes: " + str(self.error_indexes))
